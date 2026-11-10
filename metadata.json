@@ -1,0 +1,8 @@
+{
+  "name": "Nill Food - Simulador de Picaderas Criollas",
+  "description": "Simulador interactivo de combos de picaderas dominicanas al detalle y al por mayor con cálculo por unidad, media docena y docena, y pedidos directos a WhatsApp para Nill Food.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
