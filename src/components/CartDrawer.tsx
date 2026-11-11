@@ -77,8 +77,6 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
   customPicaderas = [],
   onRemoveCustomPicadera,
 }) => {
-  if (!isOpen) return null;
-
   // Calculate earliest allowed delivery datetime (current time + 24 hours)
   const getMinDeliveryDateTime = () => {
     const minDate = new Date(Date.now() + 24 * 60 * 60 * 1000);
@@ -112,6 +110,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
   const [orderHistoryList, setOrderHistoryList] = useState<OrderHistoryItem[]>(() => getOrderHistory());
   const [historySearch, setHistorySearch] = useState('');
   const [selectedHistoryOrder, setSelectedHistoryOrder] = useState<OrderHistoryItem | null>(null);
+  const [justSentSerial, setJustSentSerial] = useState<string | null>(null);
 
   // Sincronizar historial al abrir el drawer
   useEffect(() => {
@@ -546,8 +545,23 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
     saveOrderToHistory(orderRecord);
     setOrderHistoryList(getOrderHistory());
 
-    // Generate fresh serial number for future order
+    // Vaciar el carrito y la selección para que desaparezca de "Mi Pedido"
+    onClearCart();
+
+    // Limpiar campos del formulario
+    setCustomerName('');
+    setCustomerPhone('');
+    setDeliveryAddress('');
+    setNotes('');
+    setValidationError(null);
+
+    // Generar nuevo número de serie para el próximo pedido
     setCurrentSerialNumber(generateOrderSerialNumber());
+
+    // Cambiar la vista a Histórico y seleccionar el pedido recién enviado
+    setActiveDrawerView('history');
+    setSelectedHistoryOrder(orderRecord);
+    setJustSentSerial(orderRecord.serialNumber);
 
     // Safe link open for iframe sandboxes
     try {
@@ -562,6 +576,8 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
       window.open(waUrl, '_blank');
     }
   };
+
+  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 overflow-hidden bg-black/60 backdrop-blur-xs flex justify-end animate-in fade-in duration-200">
@@ -644,6 +660,36 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
         {/* VIEW 1: HISTORICAL ORDERS */}
         {activeDrawerView === 'history' ? (
           <div className="p-4 sm:p-6 space-y-4 flex-1 overflow-y-auto">
+            {/* Banner de Confirmación al Enviar Pedido */}
+            {justSentSerial && (
+              <div className="p-3.5 rounded-2xl bg-emerald-50 border border-emerald-300 text-emerald-950 flex items-start justify-between gap-3 animate-in fade-in slide-in-from-top-2 shadow-xs">
+                <div className="flex items-start gap-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0">
+                    <CheckCircle2 className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <p className="font-extrabold text-xs text-emerald-900">
+                      ¡Tu pedido fue enviado por WhatsApp!
+                    </p>
+                    <p className="text-[11px] text-emerald-800 mt-0.5 leading-relaxed">
+                      Tu carrito quedó liberado y el pedido se guardó en tu histórico con el No. de Serie{' '}
+                      <strong className="font-mono bg-emerald-200/60 px-1.5 py-0.5 rounded text-emerald-950">
+                        #{justSentSerial}
+                      </strong>.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setJustSentSerial(null)}
+                  className="text-emerald-700 hover:text-emerald-900 text-xs font-bold p-1 rounded-md hover:bg-emerald-100/60 cursor-pointer"
+                  title="Cerrar aviso"
+                >
+                  ✕
+                </button>
+              </div>
+            )}
+
             {/* Search and Clear header */}
             <div className="flex items-center gap-2">
               <div className="relative flex-1">
@@ -755,14 +801,22 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                                 Cliente
                               </span>
                               {ord.orderStatus && (
-                                <span className={`text-[9px] font-extrabold px-1.5 py-0.2 rounded-md ${
-                                  ord.orderStatus === 'cotizada'
-                                    ? 'bg-blue-100 text-blue-800'
-                                    : ord.orderStatus === 'confirmada'
-                                    ? 'bg-emerald-100 text-emerald-800'
-                                    : 'bg-amber-100 text-amber-800'
+                                <span className={`text-[9px] font-extrabold px-1.5 py-0.5 rounded-md border ${
+                                  ord.orderStatus === 'confirmada' || ord.orderStatus === 'recibida_admin'
+                                    ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                                    : ord.orderStatus === 'aprobada_cliente'
+                                    ? 'bg-purple-100 text-purple-800 border-purple-300'
+                                    : ord.orderStatus === 'cotizada'
+                                    ? 'bg-blue-100 text-blue-800 border-blue-300'
+                                    : 'bg-amber-100 text-amber-800 border-amber-300'
                                 }`}>
-                                  {ord.orderStatus === 'cotizada' ? 'Cotizada' : ord.orderStatus === 'confirmada' ? 'Confirmada' : 'Pendiente'}
+                                  {ord.orderStatus === 'confirmada' || ord.orderStatus === 'recibida_admin'
+                                    ? '🟢 Confirmada'
+                                    : ord.orderStatus === 'aprobada_cliente'
+                                    ? '🟣 Aprobada Cliente'
+                                    : ord.orderStatus === 'cotizada'
+                                    ? '🔵 Cotizada'
+                                    : '🟡 Pendiente'}
                                 </span>
                               )}
                             </div>

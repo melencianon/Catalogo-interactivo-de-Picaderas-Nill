@@ -8,10 +8,12 @@ export default defineConfig(() => {
     plugins: [react(), tailwindcss()],
     resolve: {
       alias: {
-        '@': path.resolve(__dirname, '.'),
+        '@': path.resolve(import.meta.dirname ?? '.', '.'),
       },
     },
     server: {
+      port: 3000,
+      host: '0.0.0.0',
       // HMR está deshabilitado en AI Studio a través de la variable de entorno DISABLE_HMR.
       // No modificar: la supervisión de archivos está desactivada para evitar el parpadeo durante las ediciones del agente.
       hmr: process.env.DISABLE_HMR !== 'true',

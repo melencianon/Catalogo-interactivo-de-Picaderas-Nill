@@ -88,12 +88,26 @@ export interface CustomPicaderaRequest {
   notes?: string;
 }
 
+export type OrderLifecycleStatus =
+  | 'pendiente'
+  | 'cotizada'
+  | 'aprobada_cliente'
+  | 'confirmada'
+  | 'recibida_admin'
+  | 'en_preparacion'
+  | 'entregada';
+
 export interface OrderHistoryItem {
   serialNumber: string; // e.g. NF-261109-8472
   createdAt: string; // ISO string
   customerName: string;
   customerPhone: string;
-  orderStatus?: 'pendiente' | 'cotizada' | 'confirmada';
+  orderStatus?: OrderLifecycleStatus | string;
+  quotePrices?: Record<string, number>;
+  quoteSentAt?: string;
+  clientConfirmedAt?: string;
+  adminConfirmedAt?: string;
+  quoteNotes?: string;
   deliveryDateTime: string;
   deliveryMethod: 'delivery' | 'pickup';
   deliveryAddress?: string;

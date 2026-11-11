@@ -34,6 +34,7 @@ import {
   EyeOff,
   Image as ImageIcon,
   CheckCircle,
+  CheckCircle2,
   Sparkles,
   ArchiveRestore,
   Clock,
@@ -41,6 +42,9 @@ import {
   Search,
   FileText,
   MessageCircle,
+  UserCheck,
+  Send,
+  ArrowRight,
 } from 'lucide-react';
 
 interface AdminModalProps {
@@ -76,8 +80,6 @@ export const AdminModal: React.FC<AdminModalProps> = ({
   statusMessage,
   onRefreshData,
 }) => {
-  if (!isOpen) return null;
-
   // Authentication State
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [authEmail, setAuthEmail] = useState('nillfood20@gmail.com');
@@ -98,6 +100,15 @@ export const AdminModal: React.FC<AdminModalProps> = ({
   // Quoting Order State
   const [quotingOrder, setQuotingOrder] = useState<OrderHistoryItem | null>(null);
   const [quotePrices, setQuotePrices] = useState<Record<string, number>>({});
+
+  const handleOpenQuoteModal = (order: OrderHistoryItem) => {
+    setQuotingOrder(order);
+    if (order.quotePrices) {
+      setQuotePrices({ ...order.quotePrices });
+    } else {
+      setQuotePrices({});
+    }
+  };
 
   useEffect(() => {
     if (isOpen) {
@@ -428,9 +439,12 @@ export const AdminModal: React.FC<AdminModalProps> = ({
     setTimeout(() => setCopiedSql(false), 2500);
   };
 
+  if (!isOpen) return null;
+
   return (
-    <div className="fixed inset-0 z-50 overflow-hidden bg-black/70 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4 animate-in fade-in duration-200">
-      <div className="bg-white rounded-3xl w-full max-w-4xl h-[92vh] shadow-2xl flex flex-col overflow-hidden border border-stone-100">
+    <>
+      <div className="fixed inset-0 z-50 overflow-hidden bg-black/70 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4 animate-in fade-in duration-200">
+        <div className="bg-white rounded-3xl w-full max-w-4xl h-[92vh] shadow-2xl flex flex-col overflow-hidden border border-stone-100">
         {/* Top Header */}
         <div className="bg-[#1F4E4F] text-white p-4 sm:p-5 flex items-center justify-between border-b border-teal-800">
           <div className="flex items-center gap-3">
@@ -606,14 +620,25 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                   setAdminOrderHistory(getOrderHistory());
                   setActiveTab('orders');
                 }}
-                className={`flex-1 md:flex-none text-left px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap cursor-pointer ${
+                className={`flex-1 md:flex-none text-left px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-between gap-2 whitespace-nowrap cursor-pointer ${
                   activeTab === 'orders'
                     ? 'bg-[#1F4E4F] text-white shadow-xs'
                     : 'text-stone-600 hover:bg-stone-200/70'
                 }`}
               >
-                <Receipt className="w-4 h-4" />
-                <span>Historial Pedidos ({adminOrderHistory.length})</span>
+                <div className="flex items-center gap-2">
+                  <Receipt className="w-4 h-4 text-amber-300" />
+                  <span>Historial & Cotizaciones</span>
+                </div>
+                {adminOrderHistory.filter((o) => (o.hasUnconfirmed || (o.customPicaderas && o.customPicaderas.length > 0)) && o.orderStatus !== 'cotizada').length > 0 ? (
+                  <span className="bg-amber-400 text-stone-900 text-[10px] font-black px-1.5 py-0.2 rounded-full shadow-2xs">
+                    {adminOrderHistory.filter((o) => (o.hasUnconfirmed || (o.customPicaderas && o.customPicaderas.length > 0)) && o.orderStatus !== 'cotizada').length} pend.
+                  </span>
+                ) : (
+                  <span className="text-[10px] text-stone-400 font-semibold">
+                    ({adminOrderHistory.length})
+                  </span>
+                )}
               </button>
 
               <button
@@ -1252,7 +1277,27 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                       </p>
                     </div>
 
-                    <div className="flex items-center gap-2 shrink-0">
+                    <div className="flex flex-wrap items-center gap-2 shrink-0">
+                      {adminOrderHistory.some((o) => (o.hasUnconfirmed || (o.customPicaderas && o.customPicaderas.length > 0))) && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const pending = adminOrderHistory.find(
+                              (o) => (o.hasUnconfirmed || (o.customPicaderas && o.customPicaderas.length > 0)) && o.orderStatus !== 'cotizada'
+                            ) || adminOrderHistory[0];
+                            if (pending) {
+                              setQuotingOrder(pending);
+                              setQuotePrices({});
+                            }
+                          }}
+                          className="px-3.5 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 active:scale-95 text-white text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
+                          title="Abrir cotizador de picaderas"
+                        >
+                          <MessageCircle className="w-3.5 h-3.5" />
+                          <span>Cotizar Pedido</span>
+                        </button>
+                      )}
+
                       <button
                         type="button"
                         onClick={() => setAdminOrderHistory(getOrderHistory())}
@@ -1379,14 +1424,22 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                                     {ord.comboTypeLabel}
                                   </span>
                                   {ord.orderStatus && (
-                                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${
-                                      ord.orderStatus === 'cotizada'
-                                        ? 'bg-blue-100 text-blue-800 border border-blue-200'
-                                        : ord.orderStatus === 'confirmada'
-                                        ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
-                                        : 'bg-amber-100 text-amber-800 border border-amber-200'
+                                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md border ${
+                                      ord.orderStatus === 'confirmada' || ord.orderStatus === 'recibida_admin'
+                                        ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                                        : ord.orderStatus === 'aprobada_cliente'
+                                        ? 'bg-purple-100 text-purple-800 border-purple-300'
+                                        : ord.orderStatus === 'cotizada'
+                                        ? 'bg-blue-100 text-blue-800 border-blue-300'
+                                        : 'bg-amber-100 text-amber-800 border-amber-300'
                                     }`}>
-                                      {ord.orderStatus === 'cotizada' ? 'Cotizada' : ord.orderStatus === 'confirmada' ? 'Confirmada' : 'Pendiente'}
+                                      {ord.orderStatus === 'confirmada' || ord.orderStatus === 'recibida_admin'
+                                        ? '🟢 Confirmada en Cocina'
+                                        : ord.orderStatus === 'aprobada_cliente'
+                                        ? '🟣 Aprobada por Cliente'
+                                        : ord.orderStatus === 'cotizada'
+                                        ? '🔵 Cotizada (Esperando Cliente)'
+                                        : '🟡 Pendiente Cotización'}
                                     </span>
                                   )}
                                 </div>
@@ -1487,17 +1540,48 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                               {/* Action buttons */}
                               <div className="pt-2 flex flex-wrap items-center justify-between gap-2 border-t border-stone-100">
                                 <div className="flex flex-wrap items-center gap-2">
-                                  {ord.hasUnconfirmed && ord.orderStatus !== 'cotizada' && (
+                                  {/* Cotizar / Flujo de Vida del Pedido */}
+                                  {(!ord.orderStatus || ord.orderStatus === 'pendiente') && (
                                     <button
                                       type="button"
-                                      onClick={() => {
-                                        setQuotingOrder(ord);
-                                        setQuotePrices({});
-                                      }}
+                                      onClick={() => handleOpenQuoteModal(ord)}
                                       className="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 active:scale-95 text-white text-xs font-bold flex items-center gap-1.5 shadow-2xs transition-all cursor-pointer"
                                     >
                                       <MessageCircle className="w-3.5 h-3.5" />
                                       <span>Cotizar Pedido</span>
+                                    </button>
+                                  )}
+
+                                  {ord.orderStatus === 'cotizada' && (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleOpenQuoteModal(ord)}
+                                      className="px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-95 text-white text-xs font-bold flex items-center gap-1.5 shadow-2xs transition-all cursor-pointer"
+                                    >
+                                      <MessageCircle className="w-3.5 h-3.5" />
+                                      <span>Cotizada · Ver Flujo</span>
+                                    </button>
+                                  )}
+
+                                  {ord.orderStatus === 'aprobada_cliente' && (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleOpenQuoteModal(ord)}
+                                      className="px-3 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-700 active:scale-95 text-white text-xs font-bold flex items-center gap-1.5 shadow-2xs transition-all cursor-pointer animate-pulse"
+                                    >
+                                      <UserCheck className="w-3.5 h-3.5" />
+                                      <span>¡Cliente Aprobó! · Pasar a Cocina</span>
+                                    </button>
+                                  )}
+
+                                  {(ord.orderStatus === 'confirmada' || ord.orderStatus === 'recibida_admin') && (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleOpenQuoteModal(ord)}
+                                      className="px-3 py-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 active:scale-95 text-white text-xs font-bold flex items-center gap-1.5 shadow-2xs transition-all cursor-pointer"
+                                    >
+                                      <CheckCircle2 className="w-3.5 h-3.5" />
+                                      <span>Confirmada en Cocina · Ver Flujo</span>
                                     </button>
                                   )}
 
@@ -2124,176 +2208,286 @@ export const AdminModal: React.FC<AdminModalProps> = ({
             </div>
           </div>
         )}
+      </div>
+    </div>
 
-        {/* MODAL DE COTIZACIÓN DE PICADERAS */}
-        {quotingOrder && (
-          <div className="fixed inset-0 z-70 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150">
-            <div className="bg-white rounded-3xl max-w-lg w-full shadow-2xl border border-stone-200 overflow-hidden flex flex-col max-h-[90vh]">
-              {/* Modal Header */}
-              <div className="bg-[#1F4E4F] text-white p-4 sm:p-5 flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-9 h-9 rounded-xl bg-amber-400 text-stone-900 flex items-center justify-center font-bold">
-                    <MessageCircle className="w-5 h-5 text-[#1F4E4F]" />
-                  </div>
-                  <div>
-                    <h3 className="font-extrabold text-base sm:text-lg leading-tight">
-                      Cotizar Pedido #{quotingOrder.serialNumber}
-                    </h3>
-                    <span className="text-xs text-amber-200 font-medium">
-                      Cliente: {quotingOrder.customerName}
-                    </span>
-                  </div>
+    {/* MODAL DE COTIZACIÓN Y FLUJO COMPLETO DE CONFIRMACIÓN (Z-80 OVERLAY) */}
+    {quotingOrder && (
+      <div className="fixed inset-0 z-80 bg-black/75 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4 animate-in fade-in duration-150">
+        <div className="bg-white rounded-3xl max-w-2xl w-full shadow-2xl border border-stone-200 overflow-hidden flex flex-col max-h-[94vh]">
+          {/* Modal Header */}
+          <div className="bg-[#1F4E4F] text-white p-4 sm:p-5 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-amber-400 text-stone-900 flex items-center justify-center font-bold shadow-xs shrink-0">
+                <MessageCircle className="w-5 h-5 text-[#1F4E4F]" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h3 className="font-extrabold text-base sm:text-lg leading-tight">
+                    Flujo de Cotización & Confirmación
+                  </h3>
+                  <span className="font-mono text-xs bg-amber-400/20 text-amber-200 border border-amber-300/30 px-2 py-0.5 rounded-md font-bold">
+                    #{quotingOrder.serialNumber}
+                  </span>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setQuotingOrder(null);
-                    setQuotePrices({});
-                  }}
-                  className="p-1.5 hover:bg-white/10 rounded-xl text-white transition-colors cursor-pointer"
-                  title="Cerrar modal"
-                >
-                  <X className="w-5 h-5" />
-                </button>
+                <div className="flex items-center gap-2 mt-0.5 text-xs text-teal-100 flex-wrap">
+                  <span>Cliente: <strong className="text-white">{quotingOrder.customerName}</strong></span>
+                  <span>•</span>
+                  <span>📱 {quotingOrder.customerPhone || 'Sin teléfono'}</span>
+                </div>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setQuotingOrder(null);
+                setQuotePrices({});
+              }}
+              className="p-1.5 hover:bg-white/10 rounded-xl text-white transition-colors cursor-pointer"
+              title="Cerrar modal"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+
+          {/* Modal Body */}
+          <div className="p-4 sm:p-6 overflow-y-auto space-y-5 flex-1 text-xs">
+            {/* STEPPER / TIMELINE VISUAL DE 4 ETAPAS */}
+            <div className="p-3.5 sm:p-4 rounded-2xl bg-stone-50 border border-stone-200 space-y-3">
+              <div className="flex items-center justify-between pb-2 border-b border-stone-200/80">
+                <span className="font-extrabold text-[11px] uppercase tracking-wider text-stone-500">
+                  Etapa Actual del Pedido
+                </span>
+                <span className={`text-[10px] font-extrabold px-2.5 py-1 rounded-lg border ${
+                  quotingOrder.orderStatus === 'confirmada' || quotingOrder.orderStatus === 'recibida_admin'
+                    ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                    : quotingOrder.orderStatus === 'aprobada_cliente'
+                    ? 'bg-purple-100 text-purple-800 border-purple-300'
+                    : quotingOrder.orderStatus === 'cotizada'
+                    ? 'bg-blue-100 text-blue-800 border-blue-300'
+                    : 'bg-amber-100 text-amber-800 border-amber-300'
+                }`}>
+                  {quotingOrder.orderStatus === 'confirmada' || quotingOrder.orderStatus === 'recibida_admin'
+                    ? '🟢 Confirmada en Cocina'
+                    : quotingOrder.orderStatus === 'aprobada_cliente'
+                    ? '🟣 Aprobada por Cliente'
+                    : quotingOrder.orderStatus === 'cotizada'
+                    ? '🔵 Cotización Enviada'
+                    : '🟡 Pendiente de Cotizar'}
+                </span>
               </div>
 
-              {/* Modal Body */}
-              <div className="p-4 sm:p-6 overflow-y-auto space-y-4 flex-1 text-xs">
-                {/* Info banner */}
-                <div className="p-3 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 flex items-start gap-2.5">
-                  <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-                  <div className="text-xs leading-relaxed">
-                    <span className="font-bold block">Fija el precio de las picaderas personalizadas:</span>
-                    Indica el monto (RD$) para cada producto fuera de menú. El nuevo total se sumará automáticamente y se abrirá WhatsApp con el presupuesto redactado para el cliente.
+              {/* Grid 4 Steps */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
+                {/* Step 1: Solicitud Recibida */}
+                <div className="p-2.5 rounded-xl bg-white border border-emerald-200 shadow-2xs space-y-1">
+                  <div className="w-7 h-7 rounded-full bg-emerald-100 text-emerald-700 mx-auto flex items-center justify-center font-bold text-xs">
+                    ✓
                   </div>
+                  <span className="font-bold text-[11px] block text-stone-800 leading-tight">
+                    1. Solicitado
+                  </span>
+                  <span className="text-[10px] text-emerald-700 block font-semibold">
+                    Recibido
+                  </span>
                 </div>
 
-                {/* Customer and Contact Info */}
-                <div className="grid grid-cols-2 gap-3 p-3 bg-stone-50 rounded-2xl border border-stone-200">
-                  <div>
-                    <span className="text-[10px] text-stone-400 font-bold uppercase tracking-wider block">
-                      Cliente
-                    </span>
-                    <span className="font-bold text-stone-900 text-xs block truncate">
-                      {quotingOrder.customerName}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-[10px] text-stone-400 font-bold uppercase tracking-wider block">
-                      Teléfono WhatsApp
-                    </span>
-                    <span className="font-bold text-emerald-700 text-xs block truncate">
-                      📱 {quotingOrder.customerPhone || 'No registrado'}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Custom Picaderas Inputs List */}
-                <div className="space-y-3">
-                  <h4 className="font-bold text-stone-800 text-xs uppercase tracking-wider">
-                    Picaderas por Cotizar ({quotingOrder.customPicaderas?.length || 0})
-                  </h4>
-
-                  {quotingOrder.customPicaderas && quotingOrder.customPicaderas.length > 0 ? (
-                    quotingOrder.customPicaderas.map((cp, idx) => {
-                      const itemKey = cp.id || cp.name || `custom-${idx}`;
-                      const currentPrice = quotePrices[itemKey] ?? '';
-
-                      return (
-                        <div
-                          key={itemKey}
-                          className="p-3.5 rounded-2xl border border-stone-200 bg-stone-50/50 hover:bg-stone-50 flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition-colors"
-                        >
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2">
-                              <span className="font-bold text-stone-900 text-xs sm:text-sm">
-                                {cp.name}
-                              </span>
-                              <span className="bg-purple-100 text-purple-800 text-[10px] font-bold px-2 py-0.5 rounded-md">
-                                {cp.units} unidades
-                              </span>
-                            </div>
-                            {cp.notes && (
-                              <p className="text-[11px] text-stone-500 mt-1 italic">
-                                Nota: "{cp.notes}"
-                              </p>
-                            )}
-                          </div>
-
-                          <div className="flex items-center gap-2 shrink-0">
-                            <label className="text-[11px] font-bold text-stone-600">
-                              Precio RD$:
-                            </label>
-                            <input
-                              type="number"
-                              min="0"
-                              step="any"
-                              placeholder="0.00"
-                              value={currentPrice}
-                              onChange={(e) => {
-                                const val = parseFloat(e.target.value) || 0;
-                                setQuotePrices((prev) => ({
-                                  ...prev,
-                                  [itemKey]: val,
-                                }));
-                              }}
-                              className="w-28 px-3 py-1.5 rounded-xl border border-stone-300 font-bold text-stone-900 text-xs focus:outline-none focus:ring-2 focus:ring-[#1F4E4F]/30 focus:border-[#1F4E4F] bg-white text-right"
-                            />
-                          </div>
-                        </div>
-                      );
-                    })
-                  ) : (
-                    <div className="text-stone-500 italic p-4 text-center">
-                      No hay picaderas personalizadas en este pedido.
-                    </div>
-                  )}
-                </div>
-
-                {/* Subtotal & New Grand Total summary */}
+                {/* Step 2: Cotización Nill Food */}
                 {(() => {
-                  const additionalSum = Object.values(quotePrices).reduce((a, b) => a + b, 0);
-                  const newGrandTotal = quotingOrder.grandTotal + additionalSum;
-
+                  const isDone = quotingOrder.orderStatus === 'cotizada' || quotingOrder.orderStatus === 'aprobada_cliente' || quotingOrder.orderStatus === 'confirmada';
                   return (
-                    <div className="p-3.5 rounded-2xl bg-teal-50/70 border border-teal-200 space-y-1.5">
-                      <div className="flex items-center justify-between text-xs text-stone-600">
-                        <span>Subtotal productos base:</span>
-                        <span className="font-semibold text-stone-800">{formatRD(quotingOrder.grandTotal)}</span>
+                    <div className={`p-2.5 rounded-xl border shadow-2xs space-y-1 ${
+                      isDone ? 'bg-white border-blue-300' : 'bg-amber-50/70 border-amber-300 animate-pulse'
+                    }`}>
+                      <div className={`w-7 h-7 rounded-full mx-auto flex items-center justify-center font-bold text-xs ${
+                        isDone ? 'bg-blue-100 text-blue-700' : 'bg-amber-200 text-amber-800'
+                      }`}>
+                        {isDone ? '✓' : '2'}
                       </div>
-                      <div className="flex items-center justify-between text-xs text-stone-600">
-                        <span>Suma de picaderas cotizadas:</span>
-                        <span className="font-bold text-[#1F4E4F]">+ {formatRD(additionalSum)}</span>
+                      <span className="font-bold text-[11px] block text-stone-800 leading-tight">
+                        2. Cotizado
+                      </span>
+                      <span className={`text-[10px] block font-semibold ${isDone ? 'text-blue-700' : 'text-amber-800'}`}>
+                        {isDone ? 'Precios Fijados' : 'Por Cotizar'}
+                      </span>
+                    </div>
+                  );
+                })()}
+
+                {/* Step 3: Confirmación Cliente */}
+                {(() => {
+                  const isDone = quotingOrder.orderStatus === 'aprobada_cliente' || quotingOrder.orderStatus === 'confirmada';
+                  const isWaiting = quotingOrder.orderStatus === 'cotizada';
+                  return (
+                    <div className={`p-2.5 rounded-xl border shadow-2xs space-y-1 ${
+                      isDone
+                        ? 'bg-white border-purple-300'
+                        : isWaiting
+                        ? 'bg-purple-50/70 border-purple-300 animate-pulse'
+                        : 'bg-stone-100/70 border-stone-200 opacity-60'
+                    }`}>
+                      <div className={`w-7 h-7 rounded-full mx-auto flex items-center justify-center font-bold text-xs ${
+                        isDone
+                          ? 'bg-purple-100 text-purple-700'
+                          : isWaiting
+                          ? 'bg-purple-200 text-purple-800'
+                          : 'bg-stone-200 text-stone-500'
+                      }`}>
+                        {isDone ? '✓' : '3'}
                       </div>
-                      <div className="pt-2 border-t border-teal-200 flex items-center justify-between text-sm">
-                        <span className="font-bold text-stone-900">Total Final Actualizado:</span>
-                        <span className="font-black text-base text-[#A61B1B]">{formatRD(newGrandTotal)}</span>
+                      <span className="font-bold text-[11px] block text-stone-800 leading-tight">
+                        3. Conf. Cliente
+                      </span>
+                      <span className={`text-[10px] block font-semibold ${
+                        isDone ? 'text-purple-700' : isWaiting ? 'text-purple-700 font-bold' : 'text-stone-400'
+                      }`}>
+                        {isDone ? 'Aprobado' : isWaiting ? 'Esperando Resp.' : 'Pendiente'}
+                      </span>
+                    </div>
+                  );
+                })()}
+
+                {/* Step 4: Confirmado en Cocina (Admin) */}
+                {(() => {
+                  const isDone = quotingOrder.orderStatus === 'confirmada' || quotingOrder.orderStatus === 'recibida_admin';
+                  const isReadyToConfirm = quotingOrder.orderStatus === 'aprobada_cliente';
+                  return (
+                    <div className={`p-2.5 rounded-xl border shadow-2xs space-y-1 ${
+                      isDone
+                        ? 'bg-white border-emerald-400'
+                        : isReadyToConfirm
+                        ? 'bg-emerald-50 border-emerald-300 animate-pulse'
+                        : 'bg-stone-100/70 border-stone-200 opacity-60'
+                    }`}>
+                      <div className={`w-7 h-7 rounded-full mx-auto flex items-center justify-center font-bold text-xs ${
+                        isDone
+                          ? 'bg-emerald-600 text-white'
+                          : isReadyToConfirm
+                          ? 'bg-emerald-200 text-emerald-800'
+                          : 'bg-stone-200 text-stone-500'
+                      }`}>
+                        {isDone ? '✓' : '4'}
                       </div>
+                      <span className="font-bold text-[11px] block text-stone-800 leading-tight">
+                        4. Cocina Admin
+                      </span>
+                      <span className={`text-[10px] block font-semibold ${
+                        isDone ? 'text-emerald-700 font-black' : isReadyToConfirm ? 'text-emerald-700 font-bold' : 'text-stone-400'
+                      }`}>
+                        {isDone ? 'En Cocina' : isReadyToConfirm ? 'Listo Confirmar' : 'Pendiente'}
+                      </span>
                     </div>
                   );
                 })()}
               </div>
+            </div>
 
-              {/* Modal Footer Actions */}
-              <div className="p-4 bg-stone-50 border-t border-stone-200 flex items-center justify-between gap-3">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setQuotingOrder(null);
-                    setQuotePrices({});
-                  }}
-                  className="px-4 py-2.5 rounded-xl border border-stone-300 text-stone-700 font-semibold text-xs hover:bg-stone-100 cursor-pointer transition-colors"
-                >
-                  Cancelar
-                </button>
+            {/* SECCIÓN 1: FIJACIÓN DE PRECIOS PARA PICADERAS (ETAPA 2) */}
+            <div className="p-4 rounded-2xl bg-white border border-stone-200 space-y-3.5 shadow-2xs">
+              <div className="flex items-center justify-between pb-2 border-b border-stone-100">
+                <div className="flex items-center gap-2">
+                  <div className="w-6 h-6 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-xs">
+                    2
+                  </div>
+                  <h4 className="font-bold text-stone-900 text-xs sm:text-sm">
+                    Precios de Picaderas Personalizadas ({quotingOrder.customPicaderas?.length || 0})
+                  </h4>
+                </div>
+                {quotingOrder.quoteSentAt && (
+                  <span className="text-[10px] text-stone-400 font-medium">
+                    Cotización enviada: {new Date(quotingOrder.quoteSentAt).toLocaleDateString('es-DO', { hour: '2-digit', minute: '2-digit' })}
+                  </span>
+                )}
+              </div>
 
+              {quotingOrder.customPicaderas && quotingOrder.customPicaderas.length > 0 ? (
+                <div className="space-y-2.5">
+                  {quotingOrder.customPicaderas.map((cp, idx) => {
+                    const itemKey = cp.id || cp.name || `custom-${idx}`;
+                    const currentPrice = quotePrices[itemKey] ?? (quotingOrder.quotePrices ? quotingOrder.quotePrices[itemKey] ?? '' : '');
+
+                    return (
+                      <div
+                        key={itemKey}
+                        className="p-3 rounded-xl border border-stone-200 bg-stone-50/60 hover:bg-stone-50 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 transition-colors"
+                      >
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-stone-900 text-xs">
+                              {cp.name}
+                            </span>
+                            <span className="bg-purple-100 text-purple-800 text-[10px] font-bold px-2 py-0.5 rounded-md">
+                              {cp.units} unidades
+                            </span>
+                          </div>
+                          {cp.notes && (
+                            <p className="text-[11px] text-stone-500 mt-0.5 italic">
+                              Nota: "{cp.notes}"
+                            </p>
+                          )}
+                        </div>
+
+                        <div className="flex items-center gap-2 shrink-0">
+                          <label className="text-[11px] font-bold text-stone-600">
+                            Precio RD$:
+                          </label>
+                          <input
+                            type="number"
+                            min="0"
+                            step="any"
+                            placeholder="0.00"
+                            value={currentPrice}
+                            onChange={(e) => {
+                              const val = parseFloat(e.target.value) || 0;
+                              setQuotePrices((prev) => ({
+                                ...prev,
+                                [itemKey]: val,
+                              }));
+                            }}
+                            className="w-28 px-3 py-1.5 rounded-xl border border-stone-300 font-bold text-stone-900 text-xs focus:outline-none focus:ring-2 focus:ring-[#1F4E4F]/30 focus:border-[#1F4E4F] bg-white text-right"
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="text-stone-500 italic p-3 text-center bg-stone-50 rounded-xl border border-stone-200">
+                  No se registraron picaderas personalizadas en este pedido.
+                </div>
+              )}
+
+              {/* Subtotal & Totals Box */}
+              {(() => {
+                const additionalSum = Object.values(quotePrices).reduce((a, b) => a + b, 0);
+                const newGrandTotal = quotingOrder.grandTotal + additionalSum;
+
+                return (
+                  <div className="p-3.5 rounded-2xl bg-teal-50/70 border border-teal-200 space-y-1.5">
+                    <div className="flex items-center justify-between text-xs text-stone-600">
+                      <span>Subtotal productos base:</span>
+                      <span className="font-semibold text-stone-800">{formatRD(quotingOrder.grandTotal)}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-xs text-stone-600">
+                      <span>Suma de picaderas cotizadas:</span>
+                      <span className="font-bold text-[#1F4E4F]">+ {formatRD(additionalSum)}</span>
+                    </div>
+                    <div className="pt-2 border-t border-teal-200 flex items-center justify-between text-sm">
+                      <span className="font-bold text-stone-900">Total Definitivo del Pedido:</span>
+                      <span className="font-black text-base text-[#A61B1B]">{formatRD(newGrandTotal)}</span>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* Action: Send Quote via WhatsApp */}
+              <div className="pt-1 flex items-center justify-end">
                 <button
                   type="button"
                   onClick={() => {
                     const additionalSum = Object.values(quotePrices).reduce((a, b) => a + b, 0);
                     const newGrandTotal = quotingOrder.grandTotal + additionalSum;
 
-                    // Clean customer phone number
                     let cleanPhone = (quotingOrder.customerPhone || '').replace(/\D/g, '');
                     if (cleanPhone.length === 10 && (cleanPhone.startsWith('809') || cleanPhone.startsWith('829') || cleanPhone.startsWith('849'))) {
                       cleanPhone = `1${cleanPhone}`;
@@ -2302,11 +2496,10 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                       cleanPhone = settings.whatsapp_number.replace(/\D/g, '');
                     }
 
-                    // Pre-written quotation message
                     const lines: string[] = [];
                     lines.push(`Hola *${quotingOrder.customerName}*! 👋`);
                     lines.push('Te saludamos cordialmente de *Nill Food · Comida Criolla* 🥘');
-                    lines.push(`Hemos evaluado con nuestro equipo de cocina tu pedido con *No. de Serie:* \`${quotingOrder.serialNumber}\` y te compartimos la cotización formal de tus picaderas solicitadas:`);
+                    lines.push(`Hemos evaluado con nuestro equipo tu pedido con *No. de Serie:* \`${quotingOrder.serialNumber}\` y te compartimos la cotización formal de tus picaderas solicitadas:`);
                     lines.push('');
                     lines.push('📋 *Picaderas Personalizadas Cotizadas:*');
 
@@ -2329,16 +2522,17 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                     const messageText = lines.join('\n');
                     const waUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(messageText)}`;
 
-                    // Update order in local history storage
                     const updatedOrder: OrderHistoryItem = {
                       ...quotingOrder,
                       orderStatus: 'cotizada',
                       grandTotal: newGrandTotal,
+                      quotePrices: { ...quotePrices },
+                      quoteSentAt: new Date().toISOString(),
                     };
                     const updatedHistory = updateOrderInHistory(updatedOrder);
                     setAdminOrderHistory(updatedHistory);
+                    setQuotingOrder(updatedOrder);
 
-                    // Open WhatsApp URL in new tab safely
                     try {
                       const link = document.createElement('a');
                       link.href = waUrl;
@@ -2350,21 +2544,270 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                     } catch {
                       window.open(waUrl, '_blank');
                     }
-
-                    // Reset quoting state
-                    setQuotingOrder(null);
-                    setQuotePrices({});
                   }}
-                  className="px-5 py-2.5 rounded-xl bg-[#25D366] hover:bg-[#20ba5a] text-white font-extrabold text-xs shadow-md shadow-emerald-600/20 flex items-center gap-2 cursor-pointer transition-all active:scale-95"
+                  className="px-4 py-2.5 rounded-xl bg-[#25D366] hover:bg-[#20ba5a] text-white font-extrabold text-xs shadow-md shadow-emerald-600/20 flex items-center gap-2 cursor-pointer transition-all active:scale-95"
                 >
-                  <MessageCircle className="w-4 h-4 fill-white" />
-                  <span>Enviar Cotización por WhatsApp</span>
+                  <Send className="w-4 h-4 fill-white" />
+                  <span>
+                    {quotingOrder.orderStatus === 'pendiente'
+                      ? 'Enviar Cotización por WhatsApp'
+                      : 'Reenviar / Actualizar Cotización por WhatsApp'}
+                  </span>
                 </button>
               </div>
             </div>
+
+            {/* SECCIÓN 2: ESTADO DE CONFIRMACIÓN DEL CLIENTE (ETAPA 3) */}
+            <div className={`p-4 rounded-2xl border transition-all space-y-3 ${
+              quotingOrder.orderStatus === 'aprobada_cliente' || quotingOrder.orderStatus === 'confirmada' || quotingOrder.orderStatus === 'recibida_admin'
+                ? 'bg-purple-50/60 border-purple-200'
+                : 'bg-white border-stone-200'
+            }`}>
+              <div className="flex items-center justify-between pb-2 border-b border-stone-100">
+                <div className="flex items-center gap-2">
+                  <div className={`w-6 h-6 rounded-lg flex items-center justify-center font-bold text-xs ${
+                    quotingOrder.orderStatus === 'aprobada_cliente' || quotingOrder.orderStatus === 'confirmada'
+                      ? 'bg-purple-600 text-white'
+                      : 'bg-purple-100 text-purple-700'
+                  }`}>
+                    3
+                  </div>
+                  <h4 className="font-bold text-stone-900 text-xs sm:text-sm">
+                    Confirmación del Cliente (Aprobación del Presupuesto)
+                  </h4>
+                </div>
+                <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-md ${
+                  quotingOrder.orderStatus === 'aprobada_cliente' || quotingOrder.orderStatus === 'confirmada'
+                    ? 'bg-purple-100 text-purple-800 border border-purple-300'
+                    : 'bg-amber-100 text-amber-800'
+                }`}>
+                  {quotingOrder.orderStatus === 'aprobada_cliente' || quotingOrder.orderStatus === 'confirmada'
+                    ? '✓ Confirmado por Cliente'
+                    : '⏳ Esperando Aprobación'}
+                </span>
+              </div>
+
+              {quotingOrder.orderStatus === 'aprobada_cliente' || quotingOrder.orderStatus === 'confirmada' || quotingOrder.orderStatus === 'recibida_admin' ? (
+                <div className="p-3 rounded-xl bg-purple-100/70 border border-purple-200 text-purple-900 flex items-start gap-2.5">
+                  <CheckCircle2 className="w-5 h-5 text-purple-700 shrink-0 mt-0.5" />
+                  <div className="text-xs leading-relaxed flex-1">
+                    <span className="font-bold block">
+                      ¡Aprobación del cliente confirmada!
+                    </span>
+                    El cliente {quotingOrder.customerName} aprobó la cotización y confirmó su pedido.
+                    {quotingOrder.clientConfirmedAt && (
+                      <span className="block text-[11px] text-purple-700 mt-0.5">
+                        Registrado el: {new Date(quotingOrder.clientConfirmedAt).toLocaleString('es-DO')}
+                      </span>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const updatedOrder: OrderHistoryItem = {
+                        ...quotingOrder,
+                        orderStatus: 'cotizada',
+                        clientConfirmedAt: undefined,
+                      };
+                      const updatedHistory = updateOrderInHistory(updatedOrder);
+                      setAdminOrderHistory(updatedHistory);
+                      setQuotingOrder(updatedOrder);
+                    }}
+                    className="text-[10px] text-purple-700 hover:text-purple-900 underline font-semibold cursor-pointer shrink-0"
+                  >
+                    Revertir a cotizada
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <p className="text-xs text-stone-600 leading-relaxed">
+                    Una vez que el cliente responda al WhatsApp aceptando los precios cotizados, haz clic en el botón de abajo para registrar formalmente su aprobación y dar paso a la preparación.
+                  </p>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const updatedOrder: OrderHistoryItem = {
+                          ...quotingOrder,
+                          orderStatus: 'aprobada_cliente',
+                          clientConfirmedAt: new Date().toISOString(),
+                        };
+                        const updatedHistory = updateOrderInHistory(updatedOrder);
+                        setAdminOrderHistory(updatedHistory);
+                        setQuotingOrder(updatedOrder);
+                      }}
+                      className="px-4 py-2 rounded-xl bg-purple-700 hover:bg-purple-800 text-white font-bold text-xs shadow-xs flex items-center gap-1.5 cursor-pointer transition-all active:scale-95"
+                    >
+                      <UserCheck className="w-4 h-4" />
+                      <span>Registrar Confirmación del Cliente</span>
+                    </button>
+
+                    {quotingOrder.orderStatus === 'cotizada' && (
+                      <a
+                        href={`https://wa.me/${(quotingOrder.customerPhone || '').replace(/\D/g, '')}?text=${encodeURIComponent(`Hola ${quotingOrder.customerName}! 👋 Te saludamos de Nill Food. Quisiéramos saber si pudiste revisar la cotización de tu pedido #${quotingOrder.serialNumber}. ¡Estamos atentos para reservar tu fecha!`)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="px-3.5 py-2 rounded-xl border border-stone-300 hover:bg-stone-100 text-stone-700 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
+                      >
+                        <MessageCircle className="w-3.5 h-3.5 text-emerald-600" />
+                        <span>Enviar Recordatorio WhatsApp</span>
+                      </a>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* SECCIÓN 3: RECIBIDA LA CONFIRMACIÓN POR EL ADMINISTRADOR (ETAPA 4 - COCINA) */}
+            <div className={`p-4 rounded-2xl border transition-all space-y-3 ${
+              quotingOrder.orderStatus === 'confirmada' || quotingOrder.orderStatus === 'recibida_admin'
+                ? 'bg-emerald-50/70 border-emerald-300'
+                : 'bg-white border-stone-200'
+            }`}>
+              <div className="flex items-center justify-between pb-2 border-b border-stone-100">
+                <div className="flex items-center gap-2">
+                  <div className={`w-6 h-6 rounded-lg flex items-center justify-center font-bold text-xs ${
+                    quotingOrder.orderStatus === 'confirmada' || quotingOrder.orderStatus === 'recibida_admin'
+                      ? 'bg-emerald-700 text-white'
+                      : 'bg-stone-200 text-stone-700'
+                  }`}>
+                    4
+                  </div>
+                  <h4 className="font-bold text-stone-900 text-xs sm:text-sm">
+                    Confirmación Recibida por Administrador (Pase a Cocina)
+                  </h4>
+                </div>
+                <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-md ${
+                  quotingOrder.orderStatus === 'confirmada' || quotingOrder.orderStatus === 'recibida_admin'
+                    ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                    : 'bg-stone-100 text-stone-600'
+                }`}>
+                  {quotingOrder.orderStatus === 'confirmada' || quotingOrder.orderStatus === 'recibida_admin'
+                    ? '🟢 Confirmado en Cocina'
+                    : 'Pendiente de Validación'}
+                </span>
+              </div>
+
+              {quotingOrder.orderStatus === 'confirmada' || quotingOrder.orderStatus === 'recibida_admin' ? (
+                <div className="space-y-3">
+                  <div className="p-3 rounded-xl bg-emerald-100 border border-emerald-200 text-emerald-950 flex items-start gap-2.5">
+                    <CheckCircle2 className="w-5 h-5 text-emerald-700 shrink-0 mt-0.5" />
+                    <div className="text-xs leading-relaxed flex-1">
+                      <span className="font-bold block text-emerald-900">
+                        🎉 ¡Pedido 100% Confirmado y Programado para Cocina!
+                      </span>
+                      El equipo de cocina de Nill Food tiene agendada esta orden para el día{' '}
+                      <strong>{quotingOrder.deliveryDateTime}</strong> ({quotingOrder.deliveryMethod === 'delivery' ? 'Domicilio' : 'Retiro en Tienda'}).
+                      {quotingOrder.adminConfirmedAt && (
+                        <span className="block text-[11px] text-emerald-800 mt-0.5">
+                          Confirmado por administración el: {new Date(quotingOrder.adminConfirmedAt).toLocaleString('es-DO')}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Send final confirmation receipt */}
+                  <div className="flex items-center gap-2">
+                    <a
+                      href={`https://wa.me/${(quotingOrder.customerPhone || '').replace(/\D/g, '')}?text=${encodeURIComponent(`¡Hola *${quotingOrder.customerName}*! 🎉 Confirmamos que hemos recibido formalmente tu aprobación del pedido *#${quotingOrder.serialNumber}*. Tu orden con total de RD$ ${quotingOrder.grandTotal.toLocaleString('es-DO', { minimumFractionDigits: 2 })} ya está agendada en cocina para entrega el ${quotingOrder.deliveryDateTime}. ¡Gracias por confiar en Nill Food! 🥘`)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-4 py-2 rounded-xl bg-[#25D366] hover:bg-[#20ba5a] text-white font-bold text-xs flex items-center gap-2 shadow-xs transition-colors cursor-pointer"
+                    >
+                      <MessageCircle className="w-4 h-4 fill-white" />
+                      <span>Enviar Comprobante Final por WhatsApp</span>
+                    </a>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <p className="text-xs text-stone-600 leading-relaxed">
+                    Al recibir el pago o confirmación definitiva del cliente, pulsa este botón para cerrar el ciclo, pasar el pedido formalmente a cocina y asegurar la fecha en el calendario.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const updatedOrder: OrderHistoryItem = {
+                        ...quotingOrder,
+                        orderStatus: 'confirmada',
+                        adminConfirmedAt: new Date().toISOString(),
+                      };
+                      const updatedHistory = updateOrderInHistory(updatedOrder);
+                      setAdminOrderHistory(updatedHistory);
+                      setQuotingOrder(updatedOrder);
+                    }}
+                    className="px-5 py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold text-xs shadow-md shadow-emerald-800/20 flex items-center gap-2 cursor-pointer transition-all active:scale-95"
+                  >
+                    <CheckCircle2 className="w-4 h-4 text-white" />
+                    <span>Confirmar Recepción y Pasar a Cocina</span>
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* SECCIÓN 4: SELECTOR MANUAL RÁPIDO DE ESTADO (FLEXIBILIDAD DEL ADMIN) */}
+            <div className="p-3 rounded-xl bg-stone-50 border border-stone-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+              <span className="text-[11px] font-bold text-stone-600">
+                Cambio manual directo de estado:
+              </span>
+              <div className="flex flex-wrap items-center gap-1.5">
+                {(['pendiente', 'cotizada', 'aprobada_cliente', 'confirmada'] as const).map((st) => {
+                  const isCurrent = quotingOrder.orderStatus === st;
+                  const labels = {
+                    pendiente: '1. Pendiente',
+                    cotizada: '2. Cotizada',
+                    aprobada_cliente: '3. Aprobada Cliente',
+                    confirmada: '4. En Cocina',
+                  };
+                  return (
+                    <button
+                      key={st}
+                      type="button"
+                      onClick={() => {
+                        const updatedOrder: OrderHistoryItem = {
+                          ...quotingOrder,
+                          orderStatus: st,
+                          clientConfirmedAt: st === 'aprobada_cliente' ? new Date().toISOString() : quotingOrder.clientConfirmedAt,
+                          adminConfirmedAt: st === 'confirmada' ? new Date().toISOString() : quotingOrder.adminConfirmedAt,
+                        };
+                        const updatedHistory = updateOrderInHistory(updatedOrder);
+                        setAdminOrderHistory(updatedHistory);
+                        setQuotingOrder(updatedOrder);
+                      }}
+                      className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all cursor-pointer ${
+                        isCurrent
+                          ? 'bg-[#1F4E4F] text-white shadow-xs'
+                          : 'bg-white border border-stone-200 text-stone-700 hover:bg-stone-100'
+                      }`}
+                    >
+                      {labels[st]}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
           </div>
-        )}
+
+          {/* Modal Footer Actions */}
+          <div className="p-4 bg-stone-50 border-t border-stone-200 flex items-center justify-between gap-3">
+            <button
+              type="button"
+              onClick={() => {
+                setQuotingOrder(null);
+                setQuotePrices({});
+              }}
+              className="px-5 py-2.5 rounded-xl bg-stone-800 hover:bg-stone-900 text-white font-bold text-xs shadow-xs cursor-pointer transition-colors"
+            >
+              Listo / Cerrar
+            </button>
+
+            <span className="text-[11px] text-stone-500 font-medium">
+              Los cambios se guardan automáticamente en el historial.
+            </span>
+          </div>
+        </div>
       </div>
-    </div>
-  );
+    )}
+  </>
+);
 };

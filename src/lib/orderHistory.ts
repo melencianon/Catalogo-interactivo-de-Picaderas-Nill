@@ -15,21 +15,50 @@ export function generateOrderSerialNumber(): string {
   return `NF-${year}${month}${day}-${randomSuffix}`;
 }
 
+const INITIAL_DEMO_ORDER: OrderHistoryItem = {
+  serialNumber: 'NF-261110-8420',
+  createdAt: new Date().toISOString(),
+  customerName: 'Rosanna Almonte',
+  customerPhone: '809-555-4321',
+  orderStatus: 'pendiente',
+  deliveryDateTime: '2026-11-15T16:00',
+  deliveryMethod: 'delivery',
+  deliveryAddress: 'Av. Anacaona No. 45, Bella Vista, Santo Domingo',
+  packagingType: 'caja',
+  comboTypeLabel: 'Combo Personalizado Evento',
+  items: [
+    { name: 'Quipes Tradicionales', units: 24, subtotal: 960 },
+    { name: 'Croquetas de Pollo Criollo', units: 24, subtotal: 840 },
+    { name: 'Pastelitos de Res', units: 24, subtotal: 960 },
+  ],
+  customPicaderas: [
+    { id: 'cp-demo-1', name: 'Mini Empanaditas de Chivo Liniero', units: 30, notes: 'Bien crujientes para evento privado' },
+    { id: 'cp-demo-2', name: 'Bollitos de Yuca Rellenos de Cangrejo', units: 25, notes: 'Con salsa tártara aparte' },
+  ],
+  totalUnits: 127,
+  grandTotal: 2760,
+  hasUnconfirmed: true,
+  notes: 'Favor cotizar las picaderas personalizadas fuera de menú.',
+  fullWhatsAppMessage: 'Orden oficial para cotización de picaderas...',
+};
+
 /**
  * Retrieve list of orders from local storage, sorted newest first
  */
 export function getOrderHistory(): OrderHistoryItem[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY_ORDERS_HISTORY);
-    if (!raw) return [];
+    if (!raw) {
+      return [INITIAL_DEMO_ORDER];
+    }
     const parsed = JSON.parse(raw);
     if (Array.isArray(parsed)) {
-      return parsed;
+      return parsed.length > 0 ? parsed : [INITIAL_DEMO_ORDER];
     }
-    return [];
+    return [INITIAL_DEMO_ORDER];
   } catch (e) {
     console.error('Error reading order history:', e);
-    return [];
+    return [INITIAL_DEMO_ORDER];
   }
 }
 
